@@ -1,4 +1,5 @@
 const moment = require("moment");
+import isStrongPassword from "./node_modules/validator/es/lib/isStrongPassword";
 
 const nowDate = moment(); // 현재 시간을 가져옵니다.
 
@@ -46,3 +47,21 @@ const now = moment();
 const chrimstMas = moment("2025-12-25");
 const untillXmas = chrimstMas.diff(now, "days");
 console.log(`크리스마스까지 ${untillXmas} 일 남음`);
+
+// # 요일 다루기
+require("moment/locale/ko"); // 한국어 로케일 불러오기
+const s3 = moment(); // 한국어 로케일 설정.
+
+// format 의 d 늘어날수록 풀네임에가깝게 프린트함.
+console.log(`요일 : ${s3.format("d")}`); // 3
+console.log(`요일 : ${s3.format("dd")}`); // We 수
+console.log(`요일 : ${s3.format("ddd")}`); // Wed 수
+console.log(`요일 : ${s3.format("dddd")}`); // Wednesday 수요일
+
+// q5 올해 크리스마스는 무슨 요일 일까요?
+const xmas = moment("2025-12-25");
+console.log(`올해 크리스마스의 요일은 : ${xmas.format("dddd")}`);
+
+// q6.자신이 태어난 날의 요일을 출력하세요.
+const myBD = moment("1996-07-19");
+console.log(`제가 태어난 날의 요일은 : ${myBD.format("dddd")}입니다.`);
