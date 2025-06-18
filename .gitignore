@@ -3,7 +3,7 @@ logs
 *.log*
 
 
-node_moduels/
+node_modules/
 .env
 .env.production
 .env.development
