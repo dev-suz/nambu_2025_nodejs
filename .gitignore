@@ -1,0 +1,11 @@
+logs
+*.log 
+*.log*
+
+
+node_moduels/
+.env
+.env.production
+.env.development
+.vscode
+dist

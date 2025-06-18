@@ -1,0 +1,1 @@
+프로미스 이용. Promise Hello World!
