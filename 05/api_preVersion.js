@@ -13,21 +13,12 @@ const db = new Database(db_name); // db-sqlite3의 db 를 생성(with DB file)
 const app = express(); // app 이란 변수에 express 함수를 담음. app 변수를 이용해서 express 기능 사용.
 const PORT = 3000; // PORT설정
 
-// # app.use() : 미들 웨어 설정 - 로깅 등 과 같이 모든 라우터에 공통으로 적용하고자 하는 기능들 정의해줌. next() 넣어주면 다음 요청 처리하라고 사인주는거임.
+// # app.use() : 미들 웨어 설정
 app.use(express.json()); // - 모든 요청과 응답에 json 포맷으로 처리
-app.use((req, res, next) => {
-  console.log(`나의 첫번째 미들웨어 `);
-  next();
-});
 
 // 1. post.db 게시판 전용 테이블을 만들어야함.
 // 테이블 기존재여부 확인해서 만드는 키워드 : if not exists
 // Pk auto increment
-
-// 중간에 테이블 변경할 경우 if exists 때문에 안생김 - 그냥 그때 테이블 날리고 다시 만들어랑
-// const drop_table = `drop table comments`;
-// db.exec(drop_table);
-
 const create_sql = `
     create table if not exists posts (
         id integer primary key autoincrement ,  
@@ -42,12 +33,11 @@ const create_sql = `
       id integer primary key autoincrement,
       content text,
       author text,
-      createdAt datetime default current_timestamp,
+      createdAt datetime defulat current_timestamp,
       postId integer , 
       foreign key(postId) references posts(id) on delete cascade 
     );
 `;
-
 //  exec(sql) -  sql 실행
 db.exec(create_sql);
 
@@ -62,12 +52,15 @@ app.post("/posts", (req, res) => {
 
   // 실행 시점에  ? ? ? 에 넣어서 데이터 추가
   const stmt = db.prepare(sql); // 문자열 sql 을 실제 쿼리문으로 파싱해서 statment 객체로 만듬. --> 재활용성 극대화
-  const result = stmt.run(title, content, author); // insert into posts 실행 -> 자동 증가된 id가 반환 : lastInsertRowid
-  //console.log(result);
-  const newPost = db
-    .prepare(`select * from posts where id = ? `)
-    .get(result.lastInsertRowid);
-  res.status(201).json({ message: "ok", data: newPost });
+  stmt.run(title, content, author);
+
+  // # bettter-sql3 사용법
+  // stmt.run : UPDATE, INSERT, DELETE
+  // stmt.all : SELECT * from TB, SELECT * FROM TB WHERE =  ?  ---> [] array로 값을 반환 (하나만 있어도!)
+  // stmt.get : SELECT * FROM TB LIMIT 1 --> 객체로 값을 반환
+
+  // 나중에 바뀌어야함.
+  res.status(201).json({ message: "ok" });
 });
 
 // # 게시글 전체 목록 조회 http://localhost:3000/posts?page=1 GET
@@ -86,24 +79,7 @@ app.get("/posts", (req, res) => {
   const stmt = db.prepare(sql); // 쿼리를 준비하세요
   const rows = stmt.all(limit, offset); // 쿼리를 실행하고 결과는 [] 로 반환해주세요.
   console.log(rows);
-
-  // 전체 게시글 조회
-  const totalCount = db
-    .prepare(`select count(*) as count from posts `)
-    .get().count; // alias로 준 카운트 임 - get().count
-
-  const totalPages = Math.ceil(totalCount / limit); //  21 / 5 = 4.25  --> 5
-
-  res.status(200).json({
-    message: "ok",
-    data: rows,
-    pagination: {
-      currentPage: page,
-      totalPages: totalPages,
-      totalCount: totalCount,
-      limit: limit,
-    },
-  }); // JSON.stringify({data : rows}); -- 객체를 JSON 문자열로 반환  : res.json()
+  res.status(200).json({ message: "ok", data: rows }); // JSON.stringify({data : rows}); -- 객체를 JSON 문자열로 반환  : res.json()
 });
 
 // # 게시글 상세 정보 조회. http://localhost:3000/2 GET
@@ -146,7 +122,6 @@ app.get("/posts/:id", (req, res) => {
 app.put("/posts/:id", (req, res) => {
   const id = req.params.id; // 수정할 게시글을 파람에서 가지고 오세요
   const { title, content } = req.body; // 수정할 게시글 본문에서 가져오세요.
-
   let sql = `
     update posts
      set title = ? , content = ? 
@@ -155,12 +130,7 @@ app.put("/posts/:id", (req, res) => {
   const stmt = db.prepare(sql); // Stmt에 쿼리문 파싱해서 준비시키고
   stmt.run(title, content, id); // 실제 쿼리문이 데이터 베이스에서 실행 - ? 에 넣은 순서대로 기입 해서 SQL 실행 . ( 순서 및 인자갯수 틀리면 안됌!)
   //res.redirect("/posts"); // GET http://localhost:3000/posts
-
-  const updatedPost = db.prepare(`select * from posts where id =? `).get(id);
-  if (!updatedPost) {
-    res.status(404).json({ message: "게시물을 찾을 수 없습니다." });
-  }
-  res.status(200).json({ message: "ok", data: updatedPost });
+  res.status(200).json({ message: "ok" });
 });
 
 // 게시글 삭제
@@ -171,107 +141,6 @@ app.delete("/posts/:id", (req, res) => {
   const stmt = db.prepare(sql); // 쿼리문을 준비시키고
   stmt.run(id); // 쿼리문 실행
   res.json({ message: "ok" }); //결과로 응답을 줍니다.
-});
-
-// 답변(댓글) 추가
-// posts/원글/comments
-app.post("/posts/:id/comments", (req, res) => {
-  const postId = req.params.id;
-  const { content, author } = req.body;
-
-  const post = db.prepare(`select id from posts where id = ? `).get(postId); //  엉뚱한 게시글 번호인지 확인
-  if (!post) {
-    return res.status(404).json({ message: "게시글을 찾을 수 없어용" });
-  }
-
-  const sql = `insert into comments(postId, author, content) values(?, ?,?)`;
-  const result = db.prepare(sql).run(postId, author, content);
-
-  const newComment = db
-    .prepare(`select * from comments where id=? `)
-    .get(result.lastInsertRowid);
-  res.status(201).json({ message: "ok", data: newComment });
-});
-
-// 답변(댓글) 목록 가져오기
-app.get("/posts/:id/comments", (req, res) => {
-  const postId = req.params.id;
-  const post = db.prepare(`select * from posts where id = ? `).get(postId);
-  if (!post) {
-    return res.status(404).json({ message: " 게시글을 찾을 수 없음 " });
-  }
-
-  // 쿼리로 페이지 받고
-  const page = req.query.page ? parseInt(req.query.page) : 1;
-  const limit = 3;
-  const offset = (page - 1) * limit;
-  let sql_pagination = `select id,author, content, createdAt from comments where postId =? order by createdAt desc limit ? offset ?`;
-  const comments = db.prepare(sql_pagination).all(postId, limit, offset);
-  console.log(comments);
-  // const sql = `select id, author, content, createdAt from comments where postId = ?  order by id desc`;
-  //const comments = db.prepare(sql).all(postId);
-
-  const totalCount = db
-    .prepare(`select count(*) as totalCount from posts where id = ? `)
-    .get(postId).totalCount;
-  console.log(`totalCount : ${totalCount}`);
-  const totalPage = Math.ceil(totalCount / limit);
-
-  res.status(200).json({
-    data: comments,
-    pagination: {
-      currentPage: page,
-      totalPage: totalPage,
-      limit: limit,
-    },
-    message: "ok",
-  });
-
-  // #  댓글 페이지네이션 [Re]
-});
-
-// 답변(댓글) 삭제
-app.delete("/posts/:postId/comments/:commentId", (req, res) => {
-  const { postId, commentId } = req.params;
-
-  // postId 는 안해도됌. - 코멘트 아이디로서도
-  const comment = db
-    .prepare(`select * from comments where postId = ?  and id = ?`)
-    .get(postId, commentId);
-
-  if (!comment) {
-    return res.status(404).json({ message: "댓글을 찾을 수 없습니다. " });
-  }
-  const sql = `delete from comments where id = ?`;
-  db.prepare(sql).run(commentId);
-  // 삭제후 줄것이 없으므로 - 204
-  res.status(204).end();
-});
-
-// 답글 수정(부분 업데이트)
-app.put("/posts/:postId/comments/:commentId", (req, res) => {
-  const { postId, commentId } = req.params;
-  const { author, content } = req.body;
-
-  const comment = db
-    .prepare(`select * from comments where postId = ? and id  =?`)
-    .get(postId, commentId);
-
-  if (!comment) {
-    return res.status(404).json({ message: "댓글이 없어용" });
-  }
-  const newAuthor = author !== undefined ? author : comment.author;
-  const newContent = content !== undefined ? content : comment.content;
-  db.prepare(`update comments set author = ? , content = ?  where id = ?`).run(
-    newAuthor,
-    newContent,
-    commentId
-  );
-
-  const updatedComment = db
-    .prepare(`select * from comments where id = ?`)
-    .get(commentId);
-  res.status(200).json({ message: "ok", data: updatedComment });
 });
 
 // 서버 구동
