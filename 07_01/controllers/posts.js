@@ -1,49 +1,10 @@
-// POST/COMMENT 전용 REST ENDPOINT
-const express = require("express");
-const models = require("./models");
-// multer Import
-const multer = require("multer");
-const path = require("path");
+const models = require("../models");
 
-const app = express();
-const PORT = 3000;
-
-app.use(express.json());
-// formdata , multi part form 데이터를 받기위한 설정
-app.use(express.urlencoded({ extended: true }));
-
-// http:///localhost:/3000/downloads/aa.png  --> public/uploads/aa.png
-const uploadDir = `public/uploads`;
-app.use(`/downloads`, express.static(path.join(__dirname, uploadDir)));
-
-// multer 저장소 설정
-const storage = multer.diskStorage({
-  destination: `./${uploadDir}`, // 현재 파일이 있는 디렉토리의 하위로 uplodDir을 만들어주세용
-  filename: function (req, file, cb) {
-    // file.originalname.name : aa   (aa.png -> aa)   + - + unixTimeStamp + 확장자
-    // fname : aa-1781234451.png
-    const fname =
-      path.parse(file.originalname).name +
-      "-" +
-      Date.now() +
-      path.extname(file.originalname);
-    cb(
-      null, //err
-      fname
-    );
-  },
-});
-
-const upload = multer({ storage: storage });
-
-// route add
-// 1. POST /posts 요청이 들어오면 먼저 upload.single('file') 미들웨어를 탐.
-//  - 첨부파일을 uploadDir 폴더에 저장하는데 파일 이름을 변환하여 고유하게 만들어서 저장.
-//  - req 객체에 첨부파일 정보를 실어서 핸들러 함수에 전달.
-// 2. 우리가 만든 핸들러 함수에서 req.file 객체에서 파일 정보를 사용할 수 있다.
-app.post("/posts", upload.single("file"), async (req, res) => {
+const createPost = async (req, res) => {
   const { title, content } = req.body;
   let filename = req.file ? req.file.filename : null; // filename : aa-1234568.png
+  console.log(`filename : ${filename}`);
+
   filename = `/downloads/${filename}`; // http://localhost:3000/downloads/aa-1234568.png
 
   // 원래는 JWT 토큰에서 사용자 ID 를 받아와서 넣어줘야하지만 아직 배우지 않아서
@@ -58,24 +19,49 @@ app.post("/posts", upload.single("file"), async (req, res) => {
       password: "12345678",
     });
   }
+
+  let attachments = [];
+  if (req.file) {
+    // singleFile 처리
+    attachments.push({
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      path: req.file.path,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+  } else if (req.files && req.files.length > 0) {
+    // multiple file 처리
+    attachments = req.files.map((file) => ({
+      filename: file.filename,
+      originalname: file.originalname,
+      path: file.path,
+      size: file.size,
+      mimetype: file.mimetype,
+    }));
+  }
+
   // console.log(JSON.stringify(user));
   const post = await models.Post.create({
     title: title,
     content: content,
     authorId: user.id,
-    fileName: filename,
+    // fileName: filename,
+    attachments: attachments,
   });
-
+  console.log("req.body : ", req.body);
+  console.log("req.file : ", req.file);
+  console.log("req.files : ", req.files);
+  console.log(`=====attachments === `, post.attachments);
   res.status(201).json({ message: "ok", data: post });
-});
+};
 
-app.get("/posts", async (req, res) => {
+const getAllPosts = async (req, res) => {
   const posts = await models.Post.findAll();
   res.status(200).json({ message: "ok", data: posts });
-});
+};
 
-// 게시글 한건 조회
-app.get("/posts/:id", async (req, res) => {
+const getPostDetail = async (req, res) => {
   const id = req.params.id;
   const post = await models.Post.findByPk(id);
   if (post) {
@@ -83,25 +69,62 @@ app.get("/posts/:id", async (req, res) => {
   } else {
     res.status(404).json({ message: "post not found" });
   }
-});
+};
 
-// 게시글 수정
-app.put("/posts/:id", async (req, res) => {
+// re -- ?
+const upadatePost = async (req, res) => {
   const id = req.params.id;
+  console.log(`===req : `, req);
   const { title, content } = req.body;
+
   const post = await models.Post.findByPk(id);
 
   if (post) {
     post.title = title;
     post.content = content;
+
+    // 기존 파일과 갯수가 같고 동일하면 그대로
+    // 특별히 올리는 파일이 없으면 그대로 ?
+
+    let attachments = [];
+    if (req.file) {
+      // singleFile 처리
+      attachments.push({
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        path: req.file.path,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+      // console.log(`req.file : `, req.file);
+    } else if (req.files && req.files.length > 0) {
+      // multiple file 처리
+      attachments = req.files.map((file) => ({
+        filename: file.filename,
+        originalname: file.originalname,
+        path: file.path,
+        size: file.size,
+        mimetype: file.mimetype,
+      }));
+      // console.log(`req.files : `, req.files);
+    } else {
+      attachments = post.attachments;
+      // console.log(attachments);
+    }
+
+    // await post.save();
+    // console.log(`attachments === `, attachments);
+
+    post.set({ attachments });
     await post.save();
-    res.status(200).json({ message: "ok", data: post });
+    // res.status(200).json({ message: "ok", data: post });
+    res.status(200).json({ message: "ok", data: post.get({ plain: true }) });
   } else {
     res.status(404).json({ message: "post not found " });
   }
-});
-// 게시글 삭제
-app.delete("/posts/:id", async (req, res) => {
+};
+
+const deletePost = async (req, res) => {
   const id = req.params.id;
   const result = await models.Post.destroy({
     where: { id: id },
@@ -112,11 +135,9 @@ app.delete("/posts/:id", async (req, res) => {
   } else {
     res.status(404).json({ messsage: "post not found" });
   }
-});
+};
 
-// 댓글
-// 사용자 추가
-app.post("/posts/:postId/comment", async (req, res) => {
+const addComment = async (req, res) => {
   let user = await models.User.findOne({
     where: { email: "b@example.com" },
   });
@@ -143,10 +164,9 @@ app.post("/posts/:postId/comment", async (req, res) => {
     userId: user.id,
   });
   res.status(201).json({ message: "ok", data: comment });
-});
+};
 
-// 댓글 목록 가져오기
-app.get("/posts/:postId/comments", async (req, res) => {
+const getAllComments = async (req, res) => {
   const postId = req.params.postId;
   // 포스트 있나 확인
   // Re 추가
@@ -162,10 +182,9 @@ app.get("/posts/:postId/comments", async (req, res) => {
     ],
   });
   res.status(200).json({ message: "ok", data: comments });
-});
+};
 
-// 댓글 수정
-app.put("/posts/:postId/comments/:id", async (req, res) => {
+const updateComment = async (req, res) => {
   const postId = req.params.postId;
   const commentId = req.params.id;
   const { content } = req.body;
@@ -188,10 +207,9 @@ app.put("/posts/:postId/comments/:id", async (req, res) => {
     await comment.save();
     res.status(200).json({ message: "ok", data: comment });
   }
-});
+};
 
-// 댓글 삭제 - 바로 삭제해도 됌. 굳이 포스트 찾지 않아도!
-app.delete("/posts/:postId/comments/:id", async (req, res) => {
+const deleteComment = async (req, res) => {
   const postId = req.params.postId;
   const commentId = req.params.id;
 
@@ -211,19 +229,16 @@ app.delete("/posts/:postId/comments/:id", async (req, res) => {
   } else {
     res.status(404).json({ message: "comment not found" });
   }
-});
+};
 
-// route add end
-app.listen(PORT, () => {
-  console.log(` notes 서버 실행중 -- http://localhost:${PORT}  `);
-
-  models.sequelize
-    .sync({ force: false })
-    .then(() => {
-      console.log("DB connected!");
-    })
-    .catch(() => {
-      console.error("DB connecting error");
-      process.exit();
-    });
-});
+module.exports = {
+  createPost,
+  getAllPosts,
+  getPostDetail,
+  upadatePost,
+  deletePost,
+  addComment,
+  getAllComments,
+  updateComment,
+  deleteComment,
+};
