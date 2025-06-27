@@ -9,16 +9,16 @@ const createPost = async (req, res) => {
 
   // 원래는 JWT 토큰에서 사용자 ID 를 받아와서 넣어줘야하지만 아직 배우지 않아서
   // 사용자를 생성하고 그다음에 게시글을 넣겠습니다!
-  let user = await models.User.findOne({
-    where: { email: "example@example.com" },
-  });
-  if (!user) {
-    user = await models.User.create({
-      name: "함선우",
-      email: "example@example.com",
-      password: "12345678",
-    });
-  }
+  // let user = await models.User.findOne({
+  //   where: { email: "example@example.com" },
+  // });
+  // if (!user) {
+  //   user = await models.User.create({
+  //     name: "함선우",
+  //     email: "example@example.com",
+  //     password: "12345678",
+  //   });
+  // }
 
   let attachments = [];
   if (req.file) {
@@ -45,14 +45,11 @@ const createPost = async (req, res) => {
   const post = await models.Post.create({
     title: title,
     content: content,
-    authorId: user.id,
+    authorId: req.user.id,
     // fileName: filename,
     attachments: attachments,
   });
-  console.log("req.body : ", req.body);
-  console.log("req.file : ", req.file);
-  console.log("req.files : ", req.files);
-  console.log(`=====attachments === `, post.attachments);
+
   res.status(201).json({ message: "ok", data: post });
 };
 
@@ -138,16 +135,16 @@ const deletePost = async (req, res) => {
 };
 
 const addComment = async (req, res) => {
-  let user = await models.User.findOne({
-    where: { email: "b@example.com" },
-  });
-  if (!user) {
-    user = await models.User.create({
-      name: "뉴진스",
-      email: "b@example.com",
-      password: "12345678",
-    });
-  }
+  // let user = await models.User.findOne({
+  //   where: { email: "b@example.com" },
+  // });
+  // if (!user) {
+  //   user = await models.User.create({
+  //     name: "뉴진스",
+  //     email: "b@example.com",
+  //     password: "12345678",
+  //   });
+  // }
 
   const postId = req.params.postId;
   const { content } = req.body;
@@ -155,13 +152,20 @@ const addComment = async (req, res) => {
   const post = await models.Post.findByPk(postId);
 
   if (!post) {
-    res.status(404).json({ message: "post not found" });
+    return res.status(404).json({ message: "post not found" });
   }
+
+  // console.log("decoded user from token", req.user);
+
+  // if (!req.user || !req.user.id) {
+  //   return res.status(401).json({ message: "invalid user info" });
+  // }
   //
+
   const comment = await models.Comment.create({
     content: content,
     postId: postId,
-    userId: user.id,
+    userId: req.user.id,
   });
   res.status(201).json({ message: "ok", data: comment });
 };
