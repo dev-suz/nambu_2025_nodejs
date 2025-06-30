@@ -39,7 +39,8 @@ const login = async (req, res) => {
 
   // 정당한 사용자(이메일과 비밀번호가 일치하면) 임시허가증(토큰) 발급
   const accessToken = generateAccessToken(user);
-  res.json({ message: "ok", accessToken: accessToken });
+  //  user정보 줌
+  res.json({ message: "ok", accessToken: accessToken, user });
 };
 
 module.exports = { register, login };

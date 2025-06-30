@@ -55,7 +55,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(` http://localhost${PORT}에서 실행중 ..`);
   models.sequelize
-    .sync({ force: false })
+    .sync({ force: true })
     .then(() => {
       console.log("DB connected!");
     })
