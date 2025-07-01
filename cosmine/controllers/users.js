@@ -2,33 +2,40 @@ const models = require("../models");
 const bcrypt = require("bcryptjs");
 
 const createUser = async (req, res) => {
-  const { email, password, name } = req.body;
+  try {
+    const { email, password, name } = req.body;
 
-  // 암호화
-  const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await models.User.create({
+      email,
+      password,
+      name,
+    });
 
-  const user = await models.User.create({
-    email,
-    password: hashedPassword,
-    name,
-  });
-  res.status(200).json({ message: "ok", data: user });
+    res.status(200).json({ message: "ok", data: user });
+  } catch (error) {
+    console.error("Error during creating User ; ", error);
+    res.status(500).json({ message: error.message, stack: error.stack });
+  }
 };
 
 const getAllUsers = async (req, res) => {
-  const users = await models.User.findAll();
-  res.status(200).json({ message: "ok", data: users });
+  try {
+    const users = await models.User.findAll();
+    res.status(200).json({ message: "ok", data: users });
+  } catch (error) {
+    console.error("Error during getll All the  Users ; ", error);
+    res.status(500).json({ message: error.message, stack: error.stack });
+  }
 };
 
-// http://localhost:3000/users/12
 const updateUser = async (req, res) => {
   const id = req.params.id;
   const { password, name } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
   const user = await models.User.findByPk(id);
+
   if (user) {
     if (password) {
-      user.password = hashedPassword;
+      user.password = password;
     }
     if (name) {
       user.name = name;
@@ -36,7 +43,7 @@ const updateUser = async (req, res) => {
     await user.save();
     res.status(200).json({ message: "ok", data: user });
   } else {
-    res.status(404).json({ message: "user not found!" });
+    res.status(404).json({ message: "user not found" });
   }
 };
 
@@ -51,18 +58,9 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// 로그인에 사용 (이메일로 가져옴)
-const getUserByEmail = async (req, res) => {
-  const user = await models.user.findOne({
-    where: { email: email },
-  });
-  return user;
-};
-
 module.exports = {
   createUser,
   getAllUsers,
   updateUser,
   deleteUser,
-  getUserByEmail,
 };
