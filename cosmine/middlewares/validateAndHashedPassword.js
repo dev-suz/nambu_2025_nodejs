@@ -20,7 +20,7 @@ async function validateAndHashPassword(req, res, next) {
   ) {
     return res.status(400).json({
       message:
-        "비밀번호는 8자 ~ 20 자로 영어, 숫자, 특수문자를 하나씩 포함해야합니다.",
+        "비밀번호는 8자 ~ 20자로 영어, 숫자, 특수문자를 하나씩 포함해야합니다.",
     });
   }
 

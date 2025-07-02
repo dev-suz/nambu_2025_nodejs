@@ -2,6 +2,8 @@ const express = require("express");
 const models = require("./models");
 
 const userRouter = require("./routes/user");
+const authRouter = require("./routes/auth");
+const postRouter = require("./routes/post");
 
 const path = require("path");
 const app = express();
@@ -9,6 +11,8 @@ const app = express();
 app.use(express.json());
 
 app.use("/users", userRouter);
+app.use("/auth", authRouter);
+app.use("/posts", postRouter);
 
 const PORT = process.env.PORT || 3000;
 

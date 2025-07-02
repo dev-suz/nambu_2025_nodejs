@@ -13,8 +13,7 @@ const registerSchema = Joi.object({
     .pattern(/\d/, "숫자")
     .pattern(/[^a-zA-Z0-9]/, "특수문자")
     .messages({
-      "string.min":
-        "비밀번호는 최소 8자리 이상이어야하며 영어, 숫자, 특수문자가 포함되어야합니다.",
+      "string.min": "비밀번호는 최소 8자리 이상이어야합니다.",
       "string.max": "비밀번호는 최대 20자까지 허용됩니다.",
       "string.pattern.name": "{{#name}}가 포함되어야합니다.",
       "string.empty": "비밀번호는 필수 입력 항목입니다.",

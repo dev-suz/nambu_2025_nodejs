@@ -3,6 +3,11 @@ module.exports = (sequelize, DataTypes) => {
     "Post",
     {
       category: { type: DataTypes.ENUM("review", "campagin", "notice") },
+      title: { type: DataTypes.STRING, allowNull: false },
+      fileName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       attachments: {
         type: DataTypes.JSON,
         allowNull: true,

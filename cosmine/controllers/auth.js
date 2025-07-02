@@ -6,7 +6,7 @@ const { generateAccessToken } = require("../utils/token");
 const register = async (req, res) => {
   const { email, name, password } = req.body;
 
-  const user = await models.user.create({
+  const user = await models.User.create({
     email: email,
     name: name,
     password: password,
@@ -22,7 +22,7 @@ const login = async (req, res) => {
   });
 
   if (!user) {
-    return res.status(400).json({ message: "invalid emial and password" });
+    return res.status(400).json({ message: "invalid email and password" });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
