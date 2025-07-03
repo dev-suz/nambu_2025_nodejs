@@ -21,5 +21,17 @@ router.delete(
 );
 
 router.post("/:postId/comments", authenticate, postController.createComment);
+router.get("/:postId/comments", postController.getAllComments);
+
+router.patch(
+  "/:postId/comments/:id",
+  authenticate,
+  postController.updateComment
+);
+router.delete(
+  "/:postId/comments/:id",
+  authenticate,
+  postController.deleteComment
+);
 
 module.exports = router;

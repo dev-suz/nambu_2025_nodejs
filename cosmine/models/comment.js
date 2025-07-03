@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: "comments",
+      timestamps: true,
     }
   );
   Comment.associate = function (models) {

@@ -1,4 +1,5 @@
 const models = require("../models");
+// const now = new Date();
 
 const createPost = async (req, res) => {
   //  나중에 확장할때 카테고리별로 받는게 다를 수 있음 - ??
@@ -170,14 +171,15 @@ const deletePost = async (req, res) => {
 };
 
 const createComment = async (req, res) => {
-  console.log("create comment 타ㅏ고있어요~");
   const postId = req.params.postId;
   const { content } = req.body;
   console.log(`payload : ${postId}, ${content}`);
   const post = await models.Post.findByPk(postId);
+
   if (!post) {
     return res.status(404).json({ message: "post not found" });
   }
+  console.log(`user: `, req.user);
 
   const comment = await models.Comment.create({
     content: content,
@@ -187,10 +189,83 @@ const createComment = async (req, res) => {
   res.status(201).json({ message: "ok", data: comment });
 };
 
+const getAllComments = async (req, res) => {
+  const postId = req.params.postId;
+
+  const comments = await models.Comment.findAll({
+    where: { postId: postId },
+    include: [
+      { model: models.User, as: "author", attributes: ["id", "name", "email"] },
+    ],
+  });
+  console.log("====", comments);
+  res.status(200).json({ message: "ok", data: comments });
+};
+
+//   "/:postId/comments/id", 작성자인지 확인
+const updateComment = async (req, res) => {
+  const access_user = req.user?.id;
+
+  console.log("updateComment");
+  const postId = req.params.postId;
+  const commentId = req.params.id;
+  const { content } = req.body;
+
+  const post = await models.Post.findByPk(postId);
+  const authorId = post.authorId;
+  if (!post) {
+    return res.status(404).json({ message: "post not found" });
+  }
+
+  if (authorId === access_user) {
+    const comment = await models.Comment.findOne({
+      where: { id: commentId, postId: postId },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: "comment not found" });
+    }
+
+    if (content) {
+      comment.content = content;
+      await comment.save();
+      res.status(200).json({ message: "ok", data: comment });
+    }
+  } else {
+    res.status(401).json({ message: "you're not the original writer" });
+  }
+};
+
+const deleteComment = async (req, res) => {
+  const postId = req.params.postId;
+  const commentId = req.params.id;
+
+  const post = await models.Post.findByPk(postId);
+  const access_user = req.user.id;
+  const authorId = post.authorId;
+  if (!post || post < 1) {
+    return res.status(404).json({ message: "post not found" });
+  }
+  if (access_user === authorId) {
+    const result = await models.Comment.destroy({
+      where: { id: commentId, postId: postId },
+    });
+
+    if (result > 0) {
+      res.status(204).send();
+    } else {
+      res.status(404).json({ message: "comment not deleted" });
+    }
+  }
+};
+
 module.exports = {
   createPost,
   getAllPosts,
   updatePost,
   deletePost,
   createComment,
+  getAllComments,
+  updateComment,
+  deleteComment,
 };

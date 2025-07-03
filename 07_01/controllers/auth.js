@@ -6,6 +6,7 @@ const { generateAccessToken } = require("../utils/token");
 // 회원가입
 const register = async (req, res) => {
   const { email, name, password } = req.body;
+
   // pw 암호화
   const hashedPassword = await bcrypt.hash(password, 10); //  salt = 10자리 문자열
 

@@ -12,15 +12,15 @@ module.exports = (sequelize, DataTypes) => {
         // 문자열?
         validate: { isIn: [[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]] },
       },
-      expiration_date: {
+      expirationDate: {
         type: DataTypes.DATEONLY,
         allowNull: false,
       },
-      purchase_date: {
+      purchaseDate: {
         type: DataTypes.DATEONLY,
         allowNull: true,
       },
-      start_using_date: {
+      startUsingDate: {
         type: DataTypes.DATEONLY,
         allowNull: true,
         defaultValue: Sequelize.NOW,
