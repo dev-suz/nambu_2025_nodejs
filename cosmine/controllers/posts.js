@@ -1,9 +1,7 @@
 const models = require("../models");
-// const now = new Date();
 
 const createPost = async (req, res) => {
-  //  나중에 확장할때 카테고리별로 받는게 다를 수 있음 - ??
-  console.log("---c_post: ", req.body);
+  //  나중에 확장할때 카테고리별로 받는게 다를 수 있음
   const { category, raiting, title, content } = req.body;
   const authorId = req.user?.id;
 
@@ -37,15 +35,13 @@ const createPost = async (req, res) => {
   }
 
   try {
-    // console.log(`${category}, ${authorId}, ${attachments}, ${title}`);
-    // console.log(`post payload : ${(category, authorId, attachments, title)}`);
     const post = await models.Post.create(
       { category, authorId, attachments, title },
       { transaction: t }
     );
     // review
     // 카테고리 예외처리?
-    console.log(`category(rv) payload : ${(post.id, raiting, title, content)}`);
+
     if (category === "review") {
       await models.ReviewDetail.create(
         { postId: post.id, raiting, title, content },
@@ -53,11 +49,11 @@ const createPost = async (req, res) => {
       );
     }
     await t.commit();
-    res.status(200).json({ message: "ok", data: post });
+    res.status(200).json({ message: "게시글(리뷰) 작성완료", data: post });
   } catch (error) {
     await t.rollback();
-    console.error("createPost error:", error);
-    res.status(500).json({ message: "error", error });
+    // console.error("createPost error:", error);
+    res.status(500).json({ message: "게시글(리뷰) 작성중 에러 발생", error });
   }
 
   // file 처리
@@ -65,7 +61,7 @@ const createPost = async (req, res) => {
 
 const getAllPosts = async (req, res) => {
   const posts = await models.Post.findAll();
-  res.status(200).json({ message: "ok", data: posts });
+  res.status(200).json({ message: "전체 게시글 조회 성공", data: posts });
 };
 
 const updatePost = async (req, res) => {
@@ -75,7 +71,6 @@ const updatePost = async (req, res) => {
   const post = await models.Post.findByPk(postId, { transaction: t });
   const authorId = post.authorId;
 
-  //   console.log(`##`, post.authorId);
   // 일단 지금 review로 한정 ( 카테고리 바꾸면 머리아파질것같은데)
   const review = await models.ReviewDetail.findByPk(reviewDetailId);
   const { raiting, title, content } = req.body;
@@ -109,7 +104,6 @@ const updatePost = async (req, res) => {
       }
 
       try {
-        console.log("changing~ contents");
         // category, raiting, title, content
         if (title !== undefined) post.title = title;
         if (attachments !== undefined) post.attachments = attachments;
@@ -120,19 +114,22 @@ const updatePost = async (req, res) => {
         await review.save({ transaction: t });
         await t.commit();
 
-        res.status(200).json({ messsage: "updated", data: { post, review } });
+        res.status(200).json({
+          messsage: "게시글(리뷰) 업데이트 성공",
+          data: { post, review },
+        });
       } catch (error) {
         await t.rollback();
         console.error("createPost error:", error);
         return res
           .status(500)
-          .json({ message: "error during saving posts..", error });
+          .json({ message: "게시글 저장중에 에러 발생", error });
       }
     } else {
-      res.status(404).json({ messsage: "post not found" });
+      res.status(404).json({ messsage: "게시글을 찾을 수 없습니다." });
     }
   } else {
-    res.status(401).json({ message: "you are not the origianl writer" });
+    res.status(401).json({ message: "게시글 원작자가 아닙니다. 접근 비허용" });
   }
 };
 
@@ -143,7 +140,7 @@ const deletePost = async (req, res) => {
   const t = await models.sequelize.transaction();
   const post = await models.Post.findByPk(postId);
   const authorId = post.authorId;
-  //   console.log(`===original author`, authorId);
+
   const review = await models.ReviewDetail.findByPk(reviewDetailedId);
 
   const access_user = req.user?.id;
@@ -162,31 +159,30 @@ const deletePost = async (req, res) => {
       res.status(200).json({ message: "삭제 성공" });
     } catch (error) {
       await t.rollback();
-      console.log(error);
+      // console.log(error);
       res.status(500).json({ message: "삭제 실패", error });
     }
   } else {
-    res.status(401).json({ message: "you are not the origianl writer" });
+    res.status(401).json({ message: "게시글 원작자가 아닙니다. 접근 비허용" });
   }
 };
 
 const createComment = async (req, res) => {
   const postId = req.params.postId;
   const { content } = req.body;
-  console.log(`payload : ${postId}, ${content}`);
+
   const post = await models.Post.findByPk(postId);
 
   if (!post) {
-    return res.status(404).json({ message: "post not found" });
+    return res.status(404).json({ message: "게시글을 찾을 수 없습니다." });
   }
-  console.log(`user: `, req.user);
 
   const comment = await models.Comment.create({
     content: content,
     postId: postId,
     userId: req.user.id,
   });
-  res.status(201).json({ message: "ok", data: comment });
+  res.status(201).json({ message: "댓글 작성 완료", data: comment });
 };
 
 const getAllComments = async (req, res) => {
@@ -198,15 +194,15 @@ const getAllComments = async (req, res) => {
       { model: models.User, as: "author", attributes: ["id", "name", "email"] },
     ],
   });
-  console.log("====", comments);
-  res.status(200).json({ message: "ok", data: comments });
+
+  res
+    .status(200)
+    .json({ message: "게시글에 달린 전체 댓글 조회 성공", data: comments });
 };
 
-//   "/:postId/comments/id", 작성자인지 확인
 const updateComment = async (req, res) => {
   const access_user = req.user?.id;
 
-  console.log("updateComment");
   const postId = req.params.postId;
   const commentId = req.params.id;
   const { content } = req.body;
@@ -214,7 +210,7 @@ const updateComment = async (req, res) => {
   const post = await models.Post.findByPk(postId);
   const authorId = post.authorId;
   if (!post) {
-    return res.status(404).json({ message: "post not found" });
+    return res.status(404).json({ message: "게시글을 찾을 수 없습니다." });
   }
 
   if (authorId === access_user) {
@@ -223,16 +219,18 @@ const updateComment = async (req, res) => {
     });
 
     if (!comment) {
-      return res.status(404).json({ message: "comment not found" });
+      return res
+        .status(404)
+        .json({ message: "수정하고자하는 댓글을 찾을 수 없습니다." });
     }
 
     if (content) {
       comment.content = content;
       await comment.save();
-      res.status(200).json({ message: "ok", data: comment });
+      res.status(200).json({ message: "댓글 수정 완료", data: comment });
     }
   } else {
-    res.status(401).json({ message: "you're not the original writer" });
+    res.status(401).json({ message: "댓글의 원작자가 아닙니다. 접근 비허용" });
   }
 };
 
@@ -244,7 +242,7 @@ const deleteComment = async (req, res) => {
   const access_user = req.user.id;
   const authorId = post.authorId;
   if (!post || post < 1) {
-    return res.status(404).json({ message: "post not found" });
+    return res.status(404).json({ message: "게시글을 찾을 수 없습니다." });
   }
   if (access_user === authorId) {
     const result = await models.Comment.destroy({
@@ -254,7 +252,7 @@ const deleteComment = async (req, res) => {
     if (result > 0) {
       res.status(204).send();
     } else {
-      res.status(404).json({ message: "comment not deleted" });
+      res.status(404).json({ message: "댓글 지우는 과정 중 에러 발생." });
     }
   }
 };

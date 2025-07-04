@@ -9,7 +9,6 @@ const addItem = async (req, res) => {
   if (!access_user) {
     return res.status(401).json({ message: "로그인이 필요합니다." });
   }
-  console.log(`payload: ${rating} , ${typeof rating}`);
   const item = await models.Item.create({
     name: name,
     brand: brand,
@@ -20,7 +19,7 @@ const addItem = async (req, res) => {
     userId: access_user,
   });
 
-  res.status(201).json({ message: "ok", data: item });
+  res.status(201).json({ message: "아이템 등록 성공", data: item });
 };
 
 const getAllItems = async (req, res) => {
@@ -32,7 +31,9 @@ const getAllItems = async (req, res) => {
 
   const items = await models.Item.findAll({ where: { userId: access_user } });
 
-  res.status(200).json({ message: "ok", data: items });
+  res
+    .status(200)
+    .json({ message: "개인별 아이템 전체 조회 성공", data: items });
 };
 
 const getItem = async (req, res) => {
@@ -48,22 +49,20 @@ const getItem = async (req, res) => {
   });
 
   if (!item) {
-    res.status(404).json({ message: "item not found" });
+    res.status(404).json({ message: "찾으시는 아이템이 없습니다." });
   }
 
-  res.status(200).json({ message: "ok", data: item });
+  res.status(200).json({ message: "아이템 조회 성공", data: item });
 };
 
 const updateItem = async (req, res) => {
   const access_user = req.user?.id;
   const id = req.params.id;
-  console.log(`id: ${id}`);
+
   const allowedFields = Object.keys(models.Item.rawAttributes);
   const updates = Object.fromEntries(
     Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
   );
-  console.log("allowedFields: ", allowedFields);
-  console.log("updates:", updates);
 
   if (!access_user) {
     return res.status(401).json({ message: "로그인이 필요합니다." });
@@ -76,7 +75,7 @@ const updateItem = async (req, res) => {
   if (!item) {
     return res
       .status(404)
-      .json({ message: "변경하고자하는 아이템이 없습니다." });
+      .json({ message: "수정하고자하는 아이템이 없습니다." });
   }
 
   if (access_user === item.userId) {
@@ -84,13 +83,13 @@ const updateItem = async (req, res) => {
       Object.assign(item, updates);
       return res.status(200).json({ message: "수정 완료", data: item });
     } catch (error) {
-      console.error(error);
+      // console.error(error);
       return res.status(404).json({ message: "수정중 에러 발생" });
     }
   } else {
-    return res
-      .status(401)
-      .json({ message: "not allowed to update the others data" });
+    return res.status(401).json({
+      message: "자신의 아이템만 변경 가능합니다. ",
+    });
   }
 };
 
@@ -101,7 +100,7 @@ const deleteItem = async (req, res) => {
   const item = await models.Item.findByPk(id);
 
   if (!item) {
-    res.status(404).json({ message: "item not found" });
+    res.status(404).json({ message: "지우고자하는 아이템이 없습니다." });
   }
 
   if (access_user === item.userId) {
@@ -112,7 +111,7 @@ const deleteItem = async (req, res) => {
     if (result > 0) {
       res.status(204).send();
     } else {
-      res.status(404).json({ message: "item not deleted" });
+      res.status(404).json({ message: "아이템 수정중 에러 발생" });
     }
   }
 };
